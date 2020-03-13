@@ -7,11 +7,12 @@
       true,
       "element",
       [
-        "app",
+        "ui-scroll",
         "app"
       ],
       "kebab-case"
     ],
-    "max-classes-per-file": [false]
+    "max-classes-per-file": [false],
+    "no-inferrable-types": false
   }
 }

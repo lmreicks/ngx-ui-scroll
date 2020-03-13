@@ -1,6 +1,9 @@
 import { Scroller } from '../scroller';
 import { Process, ProcessStatus } from '../interfaces/index';
 
+/**
+ * Checks if any of current items changed it's size and runs a procedure to provide internal consistency and new items fetching if needed.
+ */
 export default class Check {
 
   static run(scroller: Scroller) {
@@ -26,7 +29,7 @@ export default class Check {
       );
     }
 
-    scroller.logger.stat('check');
+    scroller.logger.stat(scroller, 'check');
 
     scroller.callWorkflow({
       process: Process.check,

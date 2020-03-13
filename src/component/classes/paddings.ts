@@ -1,14 +1,14 @@
 import { Direction } from '../interfaces/direction';
-import { Routines } from './domRoutines';
+import { DomHelper } from './domRoutines';
 import { Settings } from './settings';
 
 export class Padding {
 
   element: HTMLElement;
   direction: Direction;
-  routines: Routines;
+  routines: DomHelper;
 
-  constructor(element: HTMLElement, direction: Direction, routines: Routines) {
+  constructor(element: HTMLElement, direction: Direction, routines: DomHelper) {
     this.element = <HTMLElement>element.querySelector(`[data-padding-${direction}]`);
     this.direction = direction;
     this.routines = routines;
@@ -33,7 +33,7 @@ export class Paddings {
   forward: Padding;
   backward: Padding;
 
-  constructor(element: HTMLElement, routines: Routines, settings: Settings) {
+  constructor(element: HTMLElement, routines: DomHelper, settings: Settings) {
     this.settings = settings;
     this.forward = new Padding(element, Direction.forward, routines);
     this.backward = new Padding(element, Direction.backward, routines);

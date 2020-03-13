@@ -1,7 +1,7 @@
 import { Direction } from '../interfaces/direction';
 import { Settings } from './settings';
 
-export class Routines {
+export class DomHelper {
 
   readonly horizontal: boolean;
 
@@ -55,12 +55,6 @@ export class Routines {
   getEdge(element: HTMLElement, direction: Direction, opposite?: boolean): number {
     const params = this.getParams(element);
     return this.getRectEdge(params, direction, opposite);
-  }
-
-  getEdge2(element: HTMLElement, direction: Direction, relativeElement: HTMLElement, opposite: boolean): number {
-    // vertical only ?
-    return element.offsetTop - (relativeElement ? relativeElement.scrollTop : 0) +
-      (direction === (!opposite ? Direction.forward : Direction.backward) ? this.getSize(element) : 0);
   }
 
   hideElement(element: HTMLElement) {

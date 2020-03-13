@@ -23,7 +23,7 @@ export default class Clip {
     const clipped: Array<number> = [];
     const size = { backward: 0, forward: 0 };
     clip.callCount++;
-    logger.stat(`before clip (${clip.callCount})`);
+    logger.stat(scroller, `before clip (${clip.callCount})`);
     buffer.items = buffer.items.filter(item => {
       if (item.toRemove) {
         item.hide();
@@ -48,7 +48,7 @@ export default class Clip {
       (size.forward ? `, +${size.forward} bwd px` : '') +
       `, range: [${clipped[0]}..${clipped[clipped.length - 1]}]`
     ]);
-    logger.stat('after clip');
+    logger.stat(scroller, 'after clip');
   }
 
 }

@@ -9,17 +9,16 @@ import {
 } from '../interfaces/index';
 
 import { Settings } from './settings';
-import { Logger } from './logger';
 import { FetchModel } from './state/fetch';
 import { ClipModel } from './state/clip';
 import { WorkflowOptions } from './state/workflowOptions';
 import { ScrollState, SyntheticScroll } from './state/scroll';
 import { itemAdapterEmpty } from '../utils/adapter';
+import { LoggerService } from '../../logger.service';
 
 export class State implements IState {
 
   protected settings: Settings;
-  protected logger: Logger;
 
   initTime: number;
   innerLoopCount: number;
@@ -120,18 +119,16 @@ export class State implements IState {
     return `${this.settings.instanceIndex}-${this.workflowCycleCount}-${this.innerLoopCount + 1}`;
   }
 
-  constructor(settings: Settings, logger: Logger) {
+  constructor(settings: Settings) {
     this.settings = settings;
-    this.logger = logger;
     this.initTime = Number(new Date());
     this.innerLoopCount = 0;
     this.isInitialLoop = false;
     this.workflowCycleCount = 1;
     this.isInitialWorkflowCycle = false;
     this.countDone = 0;
-    this.workflowOptions = new WorkflowOptions(settings);
+    this.workflowOptions = new WorkflowOptions();
 
-    this.setCurrentStartIndex(settings.startIndex);
     this.fetch = new FetchModel();
     this.clip = new ClipModel();
     this.sizeBeforeRender = 0;
@@ -139,8 +136,9 @@ export class State implements IState {
     this.fwdPaddingBeforeRender = 0;
     this.bwdPaddingAverageSizeItemsCount = 0;
 
+    // TODO: scroll state doesn't seem to be used
     this.scrollState = new ScrollState();
-    this.syntheticScroll = new SyntheticScroll(logger);
+    this.syntheticScroll = new SyntheticScroll();
 
     this._isLoading = false;
     this._loopPending = false;
@@ -154,20 +152,20 @@ export class State implements IState {
     this.lastVisibleWanted = false;
   }
 
-  setCurrentStartIndex(newStartIndex: any) {
+  setCurrentStartIndex(newStartIndex: any, logger: LoggerService) {
     const { startIndex, minIndex, maxIndex } = this.settings;
     let index = Number(newStartIndex);
     if (isNaN(index)) {
-      this.logger.log(() =>
+      logger.log(() =>
         `fallback startIndex to settings.startIndex (${startIndex}) because ${newStartIndex} is not a number`);
       index = startIndex;
     }
     if (index < minIndex) {
-      this.logger.log(() => `setting startIndex to settings.minIndex (${minIndex}) because ${index} < ${minIndex}`);
+      logger.log(() => `setting startIndex to settings.minIndex (${minIndex}) because ${index} < ${minIndex}`);
       index = minIndex;
     }
     if (index > maxIndex) {
-      this.logger.log(() => `setting startIndex to settings.maxIndex (${maxIndex}) because ${index} > ${maxIndex}`);
+      logger.log(() => `setting startIndex to settings.maxIndex (${maxIndex}) because ${index} > ${maxIndex}`);
       index = maxIndex;
     }
     this.startIndex = index;

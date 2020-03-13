@@ -3,6 +3,9 @@ import { Observable, Observer } from 'rxjs';
 import { Scroller } from '../scroller';
 import { Process, ProcessStatus } from '../interfaces/index';
 
+/**
+ * Gets data from the 'get' method from the datasource
+ */
 export default class Fetch {
 
   static run(scroller: Scroller) {

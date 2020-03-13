@@ -2,6 +2,13 @@ import { Scroller } from '../scroller';
 import { Item } from '../classes/item';
 import { Process, ProcessStatus } from '../interfaces/index';
 
+/**
+ * Adds items or single item to the end of the uiScroll dataset.
+ * If eof parameter is not set, items will be added and rendered immediately,
+ * they will be placed right after the last item in the uiScroll buffer.
+ * If eof parameter is set to true, items will be added and rendered only if the end of the dataset is reached;
+ * otherwise, these items will be virtualized.
+ */
 export default class Append {
 
   static run(scroller: Scroller, payload: { items: any, eof?: any, bof?: any, prepend?: any }) {
@@ -52,7 +59,7 @@ export default class Append {
         scroller.viewport.scrollPosition += size;
       }
       scroller.logger.log(() => `buffer.${[bufferToken]} value is set to ${buffer[bufferToken]}`);
-      scroller.logger.stat(`after virtual ${prepend ? 'prepend' : 'append'}`);
+      scroller.logger.stat(scroller, `after virtual ${prepend ? 'prepend' : 'append'}`);
     }
   }
 

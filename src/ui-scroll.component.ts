@@ -1,13 +1,15 @@
 import {
   Component, OnInit, OnDestroy,
   TemplateRef, ElementRef,
-  ChangeDetectionStrategy, ChangeDetectorRef
+  ChangeDetectionStrategy, ChangeDetectorRef, Inject
 } from '@angular/core';
 
 import { Workflow } from './component/workflow';
-import { Datasource as IDatasource } from './component/interfaces/index';
+import { Datasource as IDatasource, DevSettings } from './component/interfaces/index';
 import { Datasource } from './component/classes/datasource';
 import { Item } from './component/classes/item';
+import { DevConfigToken, VersionToken } from './ui-scroll.module';
+import { LoggerService } from './logger.service';
 
 /* tslint:disable:component-selector */
 @Component({
@@ -31,7 +33,6 @@ import { Item } from './component/classes/item';
 export class UiScrollComponent implements OnInit, OnDestroy {
 
   // come from the directive
-  public version: string;
   public template: TemplateRef<any>;
   public datasource: IDatasource | Datasource;
 
@@ -43,12 +44,14 @@ export class UiScrollComponent implements OnInit, OnDestroy {
 
   constructor(
     public changeDetector: ChangeDetectorRef,
-    public elementRef: ElementRef
+    public elementRef: ElementRef,
+    private logger: LoggerService,
+    @Inject(VersionToken) public version: string
   ) {
   }
 
   ngOnInit() {
-    this.workflow = new Workflow(this);
+    this.workflow = new Workflow(this, this.logger);
   }
 
   ngOnDestroy() {

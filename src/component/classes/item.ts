@@ -1,11 +1,11 @@
-import { Routines } from './domRoutines';
+import { DomHelper } from './domRoutines';
 import { Direction } from '../interfaces/index';
 
 export class Item {
   $index: number;
   data: any;
   nodeId: string;
-  routines: Routines;
+  routines: DomHelper;
 
   element: HTMLElement;
   size: number;
@@ -13,7 +13,7 @@ export class Item {
   toRemove: boolean;
   removeDirection: Direction;
 
-  constructor($index: number, data: any, routines: Routines) {
+  constructor($index: number, data: any, routines: DomHelper) {
     this.$index = $index;
     this.data = data;
     this.nodeId = String($index);

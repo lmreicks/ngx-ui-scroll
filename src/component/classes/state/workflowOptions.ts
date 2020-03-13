@@ -1,5 +1,4 @@
 import { WorkflowOptions as IWorkflowOptions } from '../../interfaces/index';
-import { Settings } from '../settings';
 
 export class WorkflowOptions implements IWorkflowOptions {
     empty: boolean;
@@ -7,7 +6,7 @@ export class WorkflowOptions implements IWorkflowOptions {
     keepScroll: boolean;
     byTimer: boolean;
 
-    constructor(settings: Settings) {
+    constructor() {
       this.reset();
     }
 

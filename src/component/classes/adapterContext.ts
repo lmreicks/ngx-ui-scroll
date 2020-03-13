@@ -2,12 +2,10 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { switchMap, filter } from 'rxjs/operators';
 
 import { Scroller } from '../scroller';
-import { Logger } from './logger';
 import { ItemAdapter, State as IState } from '../interfaces/index';
 
 export class AdapterContext {
   callWorkflow: Function;
-  logger: Logger;
 
   private init$: BehaviorSubject<boolean>;
   private isInitialized: boolean;
@@ -103,9 +101,8 @@ export class AdapterContext {
     if (this.isInitialized) {
       return;
     }
-    const { state, buffer, logger, callWorkflow } = scroller;
+    const { state, buffer, callWorkflow } = scroller;
     this.callWorkflow = callWorkflow;
-    this.logger = logger;
 
     this.getVersion = (): string | null => scroller.version;
     this.getIsLoading = (): boolean => state.isLoading;

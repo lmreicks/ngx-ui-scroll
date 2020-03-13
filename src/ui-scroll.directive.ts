@@ -6,7 +6,6 @@ import { Datasource } from './component/interfaces/datasource';
 
 @Directive({ selector: '[uiScroll][uiScrollOf]' })
 export class UiScrollDirective implements OnInit {
-  private version: string;
   private datasource: Datasource;
 
   constructor(

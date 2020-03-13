@@ -4,11 +4,14 @@ import { Direction } from '../interfaces/index';
 import { Cache } from './cache';
 import { Item } from './item';
 import { Settings } from './settings';
-import { Logger } from './logger';
+import { LoggerService } from '../../logger.service';
 
 export class Buffer {
 
   private _items: Array<Item>;
+  /**
+   * Observable of the items to be displayed
+   */
   $items: BehaviorSubject<Array<Item>>;
 
   pristine: boolean;
@@ -20,9 +23,9 @@ export class Buffer {
 
   private startIndex: number;
   readonly minBufferSize: number;
-  readonly logger: Logger;
 
-  constructor(settings: Settings, startIndex: number, logger: Logger) {
+  constructor(settings: Settings, startIndex: number, readonly logger: LoggerService) {
+    // TODO: make this a part of the workflow
     this.$items = new BehaviorSubject<Array<Item>>([]);
     this.cache = new Cache(settings.itemSize, logger);
     this.minIndexUser = settings.minIndex;
@@ -30,7 +33,6 @@ export class Buffer {
     this.reset();
     this.startIndex = startIndex;
     this.minBufferSize = settings.bufferSize;
-    this.logger = logger;
   }
 
   reset(reload?: boolean, startIndex?: number) {
@@ -77,24 +79,40 @@ export class Buffer {
     return isFinite(this.cache.maxIndex) ? this.cache.maxIndex : this.startIndex;
   }
 
+  /**
+   * Indicates whether the beginning of the dataset is reached or not.
+   */
   get bof(): boolean {
     return this.items.length ? (this.items[0].$index === this.absMinIndex) :
       isFinite(this.absMinIndex);
   }
 
+  /**
+   * Indicates whether the end of the dataset is reached or not.
+   */
   get eof(): boolean {
     return this.items.length ? (this.items[this.items.length - 1].$index === this.absMaxIndex) :
       isFinite(this.absMaxIndex);
   }
 
+  /**
+   * Index of the first item in the view
+   */
   get firstIndex(): number | null {
     return this.items.length ? this.items[0].$index : null;
   }
 
+  /**
+   * Index of the last item in the view
+   */
   get lastIndex(): number | null {
     return this.items.length ? this.items[this.items.length - 1].$index : null;
   }
 
+  /**
+   * Gets an item at the index
+   * @param $index Index to get item for
+   */
   get($index: number): Item | undefined {
     return this.items.find((item: Item) => item.$index === $index);
   }
@@ -112,14 +130,20 @@ export class Buffer {
     return true;
   }
 
+  // TODO: make this a smart merge (performance)
   append(items: Array<Item>) {
     this.items = [...this.items, ...items];
   }
 
+  // TODO: make this a smart merge (performance)
   prepend(items: Array<Item>) {
     this.items = [...items, ...this.items];
   }
 
+  /**
+   * Removes an item from the buffer
+   * @param item Item to remove
+   */
   removeItem(item: Item) {
     this.items = this.items.filter((_item: Item) => _item.$index !== item.$index);
     this.items.forEach((_item: Item) => {
@@ -151,6 +175,11 @@ export class Buffer {
     return -1;
   }
 
+  /**
+   * Object of ItemAdapter type containing information about first visible item,
+   * where "$index" corresponds to the datasource item index value, "data" is
+   * exactly the item's content, "element" is a link to DOM element which is relevant to the item.
+   */
   getFirstVisibleItem(): Item | undefined {
     const index = this.getFirstVisibleItemIndex();
     if (index >= 0) {
@@ -158,6 +187,9 @@ export class Buffer {
     }
   }
 
+  /**
+   * Object of ItemAdapter type containing information about last visible item.
+   */
   getLastVisibleItem(): Item | undefined {
     const index = this.getLastVisibleItemIndex();
     if (index >= 0) {

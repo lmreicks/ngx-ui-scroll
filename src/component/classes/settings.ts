@@ -44,6 +44,7 @@ export const minDevSettings: IDevSettings = {
 };
 
 export class Settings implements ISettings {
+  static _instanceIndex: number = 0;
 
   // user settings
   adapter: boolean;
@@ -76,11 +77,11 @@ export class Settings implements ISettings {
   initializeDelay: number;
 
   constructor(
-    settings: ISettings | undefined, devSettings: IDevSettings | undefined, instanceIndex: number
+    settings: ISettings | undefined, devSettings: IDevSettings | undefined
   ) {
     assignSettings(this, settings || {}, defaultSettings, minSettings);
     assignDevSettings(this, devSettings || {}, defaultDevSettings, minDevSettings);
-    this.instanceIndex = instanceIndex;
+    this.instanceIndex = Settings._instanceIndex++;
     this.initializeDelay = this.getInitializeDelay();
     // todo: min/max indexes must be ignored if infinite mode is enabled ??
   }

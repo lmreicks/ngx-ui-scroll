@@ -5,8 +5,7 @@ import {
   SyntheticScroll as ISyntheticScroll,
   WindowScrollState as IWindowScrollState
 } from '../../interfaces/index';
-
-import { Logger } from '../logger';
+import { Scroller } from '../../scroller';
 
 class WindowScrollState implements IWindowScrollState {
   positionToUpdate: number;
@@ -86,7 +85,6 @@ class ScrollEventData implements IScrollEventData {
 export class SyntheticScroll implements ISyntheticScroll {
   before: IScrollEventData | null;
   list: Array<IScrollEventData>;
-  logger: Logger;
 
   get isSet(): boolean {
     return !!this.list.length;
@@ -126,8 +124,7 @@ export class SyntheticScroll implements ISyntheticScroll {
     return this.before ? this.before.position : null;
   }
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
     this.reset();
   }
 
@@ -185,14 +182,14 @@ export class SyntheticScroll implements ISyntheticScroll {
     }
   }
 
-  nearest(scrollEvent: IScrollEventData): IScrollEventData | null {
+  nearest(scroller: Scroller, scrollEvent: IScrollEventData): IScrollEventData | null {
     const last = this.before;
     if (!last || !this.list.length) {
       return null;
     }
 
     const { position, time, direction } = scrollEvent;
-    const log = (getHead: () => string) => this.logger.log(() => [
+    const log = (getHead: () => string) => scroller.logger.log(() => [
       `${getHead()}`,
       `position: ${position}`,
       `prev pos: ${this.registeredPosition}`,

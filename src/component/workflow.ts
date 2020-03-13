@@ -1,12 +1,14 @@
-import { Subscription, BehaviorSubject } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 
 import { UiScrollComponent } from '../ui-scroll.component';
 import { Scroller } from './scroller';
-import { CallWorkflow, Process, ProcessStatus as Status, ProcessSubject, WorkflowError } from './interfaces/index';
+import { CallWorkflow, Process, ProcessStatus as Status, ProcessSubject, WorkflowError, DevSettings } from './interfaces/index';
 import {
   Init, Scroll, Reload, Append, Check, Remove, UserClip, Fix,
   Start, PreFetch, Fetch, PostFetch, Render, PreClip, Clip, Adjust, End
 } from './processes/index';
+import { takeUntilDestroy } from './utils/takeUntilDestroy';
+import { LoggerService } from '../logger.service';
 
 export class Workflow {
 
@@ -16,21 +18,16 @@ export class Workflow {
   errors: Array<WorkflowError>;
 
   readonly context: UiScrollComponent;
-  readonly onScrollHandler: EventListener;
-  private itemsSubscription: Subscription;
-  private workflowSubscription: Subscription;
-  private scrollEventOptions: any;
 
-  constructor(context: UiScrollComponent) {
+  constructor(context: UiScrollComponent, logger: LoggerService) {
     this.context = context;
     this.process$ = new BehaviorSubject(<ProcessSubject>{
       process: Process.init,
       status: Status.start
     });
-    this.scroller = new Scroller(this.context, <CallWorkflow>this.callWorkflow.bind(this));
+    this.scroller = new Scroller(this.context, <CallWorkflow>this.callWorkflow.bind(this), logger);
     this.cyclesDone = 0;
     this.errors = [];
-    this.onScrollHandler = event => Scroll.run(this.scroller, event);
 
     if (this.scroller.settings.initializeDelay) {
       setTimeout(() => this.init(), this.scroller.settings.initializeDelay);
@@ -40,39 +37,19 @@ export class Workflow {
   }
 
   init() {
-    this.scroller.init();
-    this.scroller.logger.stat('initialization');
+    this.scroller.logger.stat(this.scroller, 'initialization');
     this.initListeners();
   }
 
   initListeners() {
     const scroller = this.scroller;
     scroller.logger.log(() => `uiScroll Workflow listeners are being initialized`);
-    this.itemsSubscription = scroller.buffer.$items.subscribe(items => this.context.items = items);
-    this.workflowSubscription = this.process$.subscribe(this.process.bind(this));
-    this.initScrollEventListener();
-  }
+    // update the items in the view
+    scroller.buffer.$items.pipe(
+      takeUntilDestroy(this.context),
+    ).subscribe(items => this.context.items = items);
 
-  initScrollEventListener() {
-    let passiveSupported = false;
-    try {
-      window.addEventListener(
-        'test', <EventListenerOrEventListenerObject>{}, Object.defineProperty({}, 'passive', {
-          get: () => passiveSupported = true
-        })
-      );
-    } catch (err) {
-    }
-    this.scrollEventOptions = passiveSupported ? { passive: false } : false;
-    this.scroller.viewport.scrollEventElement.addEventListener(
-      'scroll', this.onScrollHandler, this.scrollEventOptions
-    );
-  }
-
-  detachScrollEventListener() {
-    this.scroller.viewport.scrollEventElement.removeEventListener(
-      'scroll', this.onScrollHandler, this.scrollEventOptions
-    );
+    this.process$.subscribe(this.process.bind(this));
   }
 
   runProcess() {
@@ -92,7 +69,7 @@ export class Workflow {
       time: this.scroller.state.time,
       loop: this.scroller.state.loopNext
     });
-    this.scroller.logger.logError(message);
+    this.scroller.logger.logError(message, this.scroller.state);
   }
 
   process(data: ProcessSubject) {
@@ -105,7 +82,7 @@ export class Workflow {
     const { payload = {} } = data;
     const options = this.scroller.state.workflowOptions;
     const run = this.runProcess();
-    this.scroller.logger.logProcess(data);
+    this.scroller.logger.logProcess(data, this.scroller.state);
     if (status === Status.error) {
       this.processError(process, payload.error || '');
       run(End)(process, payload);
@@ -113,11 +90,28 @@ export class Workflow {
     }
     switch (process) {
       case Process.init:
+        // first process called (in constructor)
         if (status === Status.start) {
           run(Init)();
         }
+        break;
+      case Process.start:
         if (status === Status.next) {
-          run(Start)(payload);
+          switch (payload) {
+            case Process.append:
+            case Process.prepend:
+            case Process.check:
+              run(Render)();
+              break;
+            case Process.remove:
+              run(Clip)();
+              break;
+            case Process.userClip:
+              run(PreFetch)(payload);
+              break;
+            default: // This happens when start is called from init, as far as i can tell
+              run(PreFetch)();
+          }
         }
         break;
       case Process.scroll:
@@ -141,6 +135,7 @@ export class Workflow {
           }
         }
         break;
+      // Called exclusively from adapter's append method (i.e. called from the user)
       case Process.append:
         if (status === Status.start) {
           run(Append)(payload);
@@ -149,6 +144,7 @@ export class Workflow {
           run(Init)(process);
         }
         break;
+      // Called exclusively from adapter's prepend method (i.e called from the user)
       case Process.prepend:
         if (status === Status.start) {
           run(Append)({ ...payload, prepend: true });
@@ -157,6 +153,7 @@ export class Workflow {
           run(Init)(process);
         }
         break;
+      // Called by the user
       case Process.check:
         if (status === Status.start) {
           run(Check)();
@@ -165,6 +162,7 @@ export class Workflow {
           run(Init)(process);
         }
         break;
+      // Called by the user
       case Process.remove:
         if (status === Status.start) {
           run(Remove)(payload);
@@ -173,6 +171,7 @@ export class Workflow {
           run(Init)(process);
         }
         break;
+      // Called from the user
       case Process.userClip:
         if (status === Status.start) {
           run(UserClip)(payload);
@@ -189,25 +188,7 @@ export class Workflow {
           run(Init)(process);
         }
         break;
-      case Process.start:
-        if (status === Status.next) {
-          switch (payload) {
-            case Process.append:
-            case Process.prepend:
-            case Process.check:
-              run(Render)();
-              break;
-            case Process.remove:
-              run(Clip)();
-              break;
-            case Process.userClip:
-              run(PreFetch)(payload);
-              break;
-            default:
-              run(PreFetch)();
-          }
-        }
-        break;
+      // Called w
       case Process.preFetch:
         const userClip = payload === Process.userClip;
         if (status === Status.done && !userClip) {
@@ -266,7 +247,6 @@ export class Workflow {
         }
         break;
       case Process.end:
-        this.scroller.finalize();
         if (status === Status.next) {
           switch (payload) {
             case Process.reload:
@@ -309,10 +289,7 @@ export class Workflow {
   }
 
   dispose() {
-    this.detachScrollEventListener();
     this.process$.complete();
-    this.workflowSubscription.unsubscribe();
-    this.itemsSubscription.unsubscribe();
     this.scroller.dispose();
   }
 

@@ -60,7 +60,7 @@ export default class Scroll {
     const { syntheticScroll: synth, scrollState } = scroller.state;
 
     if (synth.isSet) {
-      scroller.logger.synth('synthetic proc');
+      Scroll.logSynth(scroller, 'synthetic proc');
     }
 
     // H1 -- no synthetic position changes
@@ -90,7 +90,7 @@ export default class Scroll {
           scrollState.time = <number>synth.handledTime;
         }
         synth.done();
-        scroller.logger.synth('synthetic done');
+        Scroll.logSynth(scroller, 'synthetic done');
       }
       return ScrollProcess.stop;
     }
@@ -143,7 +143,6 @@ export default class Scroll {
     const tDiff = state.lastScrollTime + scroller.settings.throttle - time;
     const dDiff = scroller.settings.throttle + (state.firstScrollTime ? state.firstScrollTime - time : 0);
     const diff = Math.max(tDiff, dDiff);
-    // scroller.logger.log('tDiff:', tDiff, 'dDiff:', dDiff, 'diff:', diff);
     if (diff <= 0) {
       scroller.purgeScrollTimers(true);
       state.lastScrollTime = time;
@@ -159,9 +158,6 @@ export default class Scroll {
         Scroll.run(scroller);
       }, diff);
     }
-    // else {
-    //   scroller.logger.log('MISS TIMER');
-    // }
   }
 
   static logPendingWorkflow(scroller: Scroller) {
@@ -182,10 +178,22 @@ export default class Scroll {
     const skip = scroller.buffer.bof && scroller.buffer.eof;
     workflowOptions.scroll = true;
     workflowOptions.keepScroll = scrollState.keepScroll;
+
+    // TODO: ProcessStatus.done is not used
     scroller.callWorkflow({
       process: Process.scroll,
       status: skip ? ProcessStatus.done : ProcessStatus.next
     });
   }
 
+  static logSynth(scroller: Scroller, token?: string) {
+    scroller.logger.log(() => {
+      const synth = scroller.state.syntheticScroll;
+      return [
+        ...(token ? [token + ';'] : []),
+        'registered', synth.registeredPosition,
+        '/ queued', synth.list.map((i: any) => i.position)
+      ];
+    });
+  }
 }

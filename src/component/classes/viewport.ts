@@ -3,27 +3,31 @@ import { ElementRef } from '@angular/core';
 import { Direction } from '../interfaces/index';
 import { Paddings } from './paddings';
 import { Settings } from './settings';
-import { Routines } from './domRoutines';
+import { DomHelper } from './domRoutines';
 import { State } from './state';
-import { Logger } from './logger';
+import { LoggerService } from '../../logger.service';
 
 export class Viewport {
 
   paddings: Paddings;
-  startDelta: number;
+
+  /**
+   * offset in pixels of where the items should start
+   */
+  startDelta: number; // TODO: this could be wrong, so update it if we find new info
 
   readonly element: HTMLElement;
   readonly host: HTMLElement;
   readonly scrollEventElement: HTMLElement | Document;
   readonly scrollable: HTMLElement;
   readonly settings: Settings;
-  readonly routines: Routines;
+  readonly routines: DomHelper;
   readonly state: State;
-  readonly logger: Logger;
+  readonly logger: LoggerService;
 
   private disabled: boolean;
 
-  constructor(elementRef: ElementRef, settings: Settings, routines: Routines, state: State, logger: Logger) {
+  constructor(elementRef: ElementRef, settings: Settings, routines: DomHelper, state: State, logger: LoggerService) {
     this.settings = settings;
     this.routines = routines;
     this.state = state;
@@ -59,7 +63,7 @@ export class Viewport {
     }
     this.scrollPosition = newPosition;
     this.state.scrollState.reset();
-    // this.state.syntheticScroll.reset(scrollPosition !== newPosition ? newPosition : null);
+
     this.startDelta = 0;
   }
 
