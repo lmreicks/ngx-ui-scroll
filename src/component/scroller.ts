@@ -1,6 +1,5 @@
-import { Observable, Subscription, Observer, timer, fromEvent } from 'rxjs';
+import { Observable, Subscription, BehaviorSubject, timer, fromEvent } from 'rxjs';
 
-import { UiScrollComponent } from '../ui-scroll.component';
 import { checkDatasource } from './utils/index';
 import { Datasource } from './classes/datasource';
 import { Settings } from './classes/settings';
@@ -8,17 +7,16 @@ import { DomHelper } from './classes/domRoutines';
 import { Viewport } from './classes/viewport';
 import { Buffer } from './classes/buffer';
 import { State } from './classes/state';
-import { CallWorkflow } from './interfaces/index';
+import { ScrollerWorkflow, IDatasource } from './interfaces/index';
 import { switchMapTo } from 'rxjs/operators';
 import { takeUntilDestroy } from './utils/takeUntilDestroy';
 import { LoggerService } from '../logger.service';
+import { Item } from './classes/item';
+import { Adapter } from './classes/adapter';
 
 export class Scroller {
+  public workflow: ScrollerWorkflow;
 
-  readonly runChangeDetector: Function;
-  readonly callWorkflow: CallWorkflow;
-
-  public version: string;
   public datasource: Datasource;
   public settings: Settings;
   public logger: LoggerService;
@@ -26,48 +24,43 @@ export class Scroller {
   public viewport: Viewport;
   public buffer: Buffer;
   public state: State;
+  public adapter?: Adapter;
 
   public innerLoopSubscriptions: Array<Subscription>;
 
-  constructor(context: UiScrollComponent, callWorkflow: CallWorkflow, logger: LoggerService) {
-    const datasource = <Datasource>checkDatasource(context.datasource);
-    this.datasource = datasource;
-    this.version = context.version;
+  constructor(
+    element: HTMLElement,
+    datasource: Datasource | IDatasource,
+    version: string, callWorkflow: Function,
+    logger: LoggerService,
+    $items?: BehaviorSubject<Item[]> // to keep the reference during re-initialization
+  ) {
+    checkDatasource(datasource);
 
-    this.runChangeDetector = () => {
-      if (!(context.changeDetector as unknown as { destroyed: boolean }).destroyed) {
-        context.changeDetector.markForCheck();
-      }
-    };
-
-    this.callWorkflow = callWorkflow;
+    this.workflow = <ScrollerWorkflow>{ call: callWorkflow };
     this.innerLoopSubscriptions = [];
 
-    // TODO: Decouple logger from Scroller
-    // Currently logger needs scroller.state, which doesn't get initialized until after
-    // and then state takes in Logger. (logger should not need anything)
-    this.logger = logger;
     this.settings = new Settings(datasource.settings, datasource.devSettings);
+    this.logger = logger;
     this.routines = new DomHelper(this.settings);
     this.state = new State(this.settings);
-    this.state.setCurrentStartIndex(this.settings.startIndex, this.logger);
 
-    this.buffer = new Buffer(this.settings, this.state.startIndex, this.logger);
-    this.viewport = new Viewport(context.elementRef, this.settings, this.routines, this.state, this.logger);
+    this.buffer = new Buffer(this.settings, this.state.startIndex, $items);
+    this.viewport = new Viewport(element, this.settings, this.routines, this.state, this.logger);
 
     this.logger.object('uiScroll settings object', this.settings, true);
 
-    this.buffer.$items.pipe(
-      takeUntilDestroy(context)
-    ).subscribe(items => context.items = items);
+    // datasource & adapter initialization
+    this.datasourceInit(datasource);
 
-    this.init(context);
-
-    this.datasourceInit();
+    if ($items) {
+      this.init();
+    }
   }
 
-  init(context: UiScrollComponent) {
+  init() {
     this.viewport.reset(0);
+    this.state.setCurrentStartIndex(this.settings.startIndex, this.logger);
 
     const { scrollEventElement } = this.viewport;
     let passiveSupported = false;
@@ -84,27 +77,23 @@ export class Scroller {
 
     timer(this.settings.initializeDelay).pipe(
       switchMapTo(fromEvent(scrollEventElement, 'scroll', scrollEventOptions).pipe(
-        takeUntilDestroy(context)
+        takeUntilDestroy(this, 'dispose')
       ))
     );
     this.logger.stat(this, 'initialization');
   }
 
-  datasourceInit() {
-    const { datasource, settings } = this;
-    if (!datasource.constructed) {
-      this.datasource = new Datasource(datasource, !settings.adapter);
-      if (settings.adapter) {
-        this.datasource.adapter.initialize(this);
-        datasource.adapter = this.datasource.adapter;
-      }
-    } else {
-      this.datasource.adapter.initialize(this);
+  datasourceInit(datasource: IDatasource | Datasource) {
+    const constructed = datasource instanceof Datasource;
+    this.datasource = !constructed
+      ? new Datasource(datasource, !this.settings.adapter)
+      : <Datasource>datasource;
+    if (constructed || this.settings.adapter) {
+      this.adapter = new Adapter(this.datasource.adapter, this.state, this.buffer, this.logger, () => this.workflow);
     }
   }
 
   bindData(): Observable<any> {
-    this.runChangeDetector();
     return timer();
   }
 
@@ -126,7 +115,13 @@ export class Scroller {
   }
 
   dispose() {
+    if (this.adapter) {
+      this.adapter.dispose();
+    }
     this.purgeInnerLoopSubscriptions();
     this.purgeScrollTimers();
+  }
+
+  finalize() {
   }
 }

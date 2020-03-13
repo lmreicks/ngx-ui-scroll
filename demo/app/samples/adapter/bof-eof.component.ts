@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { BehaviorSubject, Subject, merge, Subscription } from 'rxjs';
 
 import { DemoContext, DemoSources, DemoSourceType } from '../../shared/interfaces';
 import { doLog } from '../../shared/datasource-get';
@@ -21,7 +22,7 @@ export class DemoBofEofComponent {
   };
 
   datasource = new Datasource({
-    get: (index, count, success) => {
+    get: (index: number, count: number, success: Function) => {
       const MIN = 1, MAX = 100;
       const data = [];
       const start = Math.max(MIN, index);
@@ -35,6 +36,13 @@ export class DemoBofEofComponent {
       success(data);
     }
   });
+
+  edgeCounter = 0;
+
+  constructor() {
+    const { eof$, bof$ } = this.datasource.adapter;
+    merge(bof$, eof$).subscribe(() => this.edgeCounter++);
+  }
 
   sources: DemoSources = [{
     name: DemoSourceType.Component,
@@ -51,13 +59,23 @@ export class DemoBofEofComponent {
     }
     success(data);
   }
-});`
+});
+
+edgeCounter = 0;
+
+constructor() {
+  const { eof$, bof$ } = this.datasource.adapter;
+  merge(bof$, eof$).subscribe(() => this.edgeCounter++);
+}
+`
   }, {
     active: true,
     name: DemoSourceType.Template,
-    text: `Begin of file is {{datasource.adapter.bof ? '' : 'not'}} reached.
+    text: `Begin of file is {{datasource.adapter.bof ? '' : 'not'}} reached
 <br>
-End of file is {{datasource.adapter.eof ? '' : 'not'}} reached.
+End of file is {{datasource.adapter.eof ? '' : 'not'}} reached
+<br>
+BOF / EOF changes counter: {{edgeCounter}}
 
 <div class="viewport">
   <div *uiScroll="let item of datasource">

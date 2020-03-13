@@ -8,12 +8,15 @@ import { UiScrollModule } from '../../public_api'; // from 'ngx-ui-scroll';
 
 import { AppComponent } from './app.component';
 import { NavComponent } from './shared/nav.component';
+import { DemoTitleComponent } from './shared/demo/demo-title.component';
+import { DemoSourcesComponent } from './shared/demo/demo-sources.component';
 import { DemoComponent } from './shared/demo.component';
 
 import { HomeComponent } from './samples/home.component';
 import { SettingsComponent } from './samples/settings.component';
 import { AdapterComponent } from './samples/adapter.component';
 import { DatasourceComponent } from './samples/datasource.component';
+import { ExperimentalComponent } from './samples/experimental.component';
 
 import { DemoBasicComponent } from './samples/common/basic.component';
 import { DemoBufferSizeComponent } from './samples/common/buffer-size.component';
@@ -25,6 +28,7 @@ import { DemoInfiniteComponent } from './samples/common/infinite.component';
 import { DemoHorizontalComponent } from './samples/common/horizontal.component';
 import { DemoDifferentHeightsComponent } from './samples/common/different-heights.component';
 import { DemoWindowViewportComponent } from './samples/common/window-viewport.component';
+import { DemoResetComponent } from './samples/adapter/reset.component';
 import { DemoReloadComponent } from './samples/adapter/reload.component';
 import { DemoIsLoadingComponent } from './samples/adapter/is-loading.component';
 import { DemoItemsCountComponent } from './samples/adapter/items-count.component';
@@ -33,6 +37,7 @@ import { DemoFirstLastVisibleItemsComponent } from './samples/adapter/first-last
 import { DemoAppendPrependComponent } from './samples/adapter/append-prepend.component';
 import { DemoAppendPrependSyncComponent } from './samples/adapter/append-prepend-sync.component';
 import { DemoIsLoadingExtendedComponent } from './samples/adapter/is-loading-extended.component';
+import { DemoInsertComponent } from './samples/adapter/insert.component';
 import { DemoCheckSizeComponent } from './samples/adapter/check-size.component';
 import { DemoRemoveComponent } from './samples/adapter/remove.component';
 import { DemoClipComponent } from './samples/adapter/clip.component';
@@ -43,6 +48,9 @@ import { DemoPositiveLimitedDatasourceComponent } from './samples/datasource/pos
 import { RemoteDataService, DemoRemoteDatasourceComponent } from './samples/datasource/remote-datasource.component';
 import { DemoInvertedDatasourceComponent } from './samples/datasource/inverted-datasource.component';
 import { DemoPagesDatasourceComponent } from './samples/datasource/pages-datasource.component';
+import { DemoAdapterFixPositionComponent } from './samples/experimental/adapter-fix-position.component';
+import { DemoInverseSettingComponent } from './samples/experimental/inverse-setting.component';
+import { DemoAdapterFixUpdaterComponent } from './samples/experimental/adapter-fix-updater.component';
 import { WindowComponent } from './samples/window.component';
 import { TestComponent, TestInnerComponent } from './samples/test.component';
 
@@ -52,11 +60,14 @@ import { AppRoutingModule } from './app-routing.module';
   declarations: [
     AppComponent,
     NavComponent,
+    DemoTitleComponent,
+    DemoSourcesComponent,
     DemoComponent,
     HomeComponent,
     SettingsComponent,
     AdapterComponent,
     DatasourceComponent,
+    ExperimentalComponent,
     DemoBasicComponent,
     DemoBufferSizeComponent,
     DemoPaddingComponent,
@@ -67,6 +78,7 @@ import { AppRoutingModule } from './app-routing.module';
     DemoHorizontalComponent,
     DemoDifferentHeightsComponent,
     DemoWindowViewportComponent,
+    DemoResetComponent,
     DemoReloadComponent,
     DemoIsLoadingComponent,
     DemoItemsCountComponent,
@@ -75,6 +87,7 @@ import { AppRoutingModule } from './app-routing.module';
     DemoAppendPrependComponent,
     DemoAppendPrependSyncComponent,
     DemoIsLoadingExtendedComponent,
+    DemoInsertComponent,
     DemoCheckSizeComponent,
     DemoRemoveComponent,
     DemoClipComponent,
@@ -85,6 +98,9 @@ import { AppRoutingModule } from './app-routing.module';
     DemoRemoteDatasourceComponent,
     DemoInvertedDatasourceComponent,
     DemoPagesDatasourceComponent,
+    DemoAdapterFixPositionComponent,
+    DemoInverseSettingComponent,
+    DemoAdapterFixUpdaterComponent,
     WindowComponent,
     TestComponent,
     TestInnerComponent

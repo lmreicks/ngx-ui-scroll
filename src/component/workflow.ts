@@ -1,55 +1,99 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, timer } from 'rxjs';
 
-import { UiScrollComponent } from '../ui-scroll.component';
 import { Scroller } from './scroller';
-import { CallWorkflow, Process, ProcessStatus as Status, ProcessSubject, WorkflowError, DevSettings } from './interfaces/index';
+import { runStateMachine } from './workflow-transducer';
 import {
-  Init, Scroll, Reload, Append, Check, Remove, UserClip, Fix,
-  Start, PreFetch, Fetch, PostFetch, Render, PreClip, Clip, Adjust, End
-} from './processes/index';
-import { takeUntilDestroy } from './utils/takeUntilDestroy';
+  IDatasource,
+  Process,
+  ProcessStatus as Status,
+  ProcessSubject,
+  ProcessStatus,
+  WorkflowError,
+  ScrollerWorkflow,
+  InterruptParams,
+  StateMachineMethods
+} from './interfaces/index';
 import { LoggerService } from '../logger.service';
+import { takeUntilDestroy } from './utils/takeUntilDestroy';
 
 export class Workflow {
 
+  isInitialized: boolean;
   scroller: Scroller;
   process$: BehaviorSubject<ProcessSubject>;
   cyclesDone: number;
+  interruptionCount: number;
   errors: Array<WorkflowError>;
 
-  readonly context: UiScrollComponent;
+  readonly propagateChanges: Function;
+  readonly onScrollHandler: EventListener;
+  private stateMachineMethods: StateMachineMethods;
 
-  constructor(context: UiScrollComponent, logger: LoggerService) {
-    this.context = context;
+  constructor(element: HTMLElement, datasource: IDatasource, private version: string, private logger: LoggerService, run: Function) {
+    this.isInitialized = false;
     this.process$ = new BehaviorSubject(<ProcessSubject>{
       process: Process.init,
       status: Status.start
     });
-    this.scroller = new Scroller(this.context, <CallWorkflow>this.callWorkflow.bind(this), logger);
+    this.propagateChanges = run;
+    this.callWorkflow = <any>this.callWorkflow.bind(this);
+    this.scroller = new Scroller(element, datasource, version, this.callWorkflow, this.logger);
     this.cyclesDone = 0;
+    this.interruptionCount = 0;
     this.errors = [];
+    this.onScrollHandler = event => this.callWorkflow({
+      process: Process.scroll,
+      status: ProcessStatus.start,
+      payload: { event }
+    });
+    this.stateMachineMethods = {
+      run: this.runProcess(),
+      interrupt: this.interrupt.bind(this),
+      done: this.done.bind(this),
+      onError: this.onError.bind(this)
+    };
 
-    if (this.scroller.settings.initializeDelay) {
-      setTimeout(() => this.init(), this.scroller.settings.initializeDelay);
-    } else {
-      this.init();
-    }
+    timer(this.scroller.settings.initializeDelay).subscribe(this.init.bind(this));
   }
 
   init() {
-    this.scroller.logger.stat(this.scroller, 'initialization');
-    this.initListeners();
+    this.scroller.init();
+    this.isInitialized = true;
+
+    // propagate the item list to the view
+    this.scroller.buffer.$items.pipe(
+      takeUntilDestroy(this, 'dispose')
+    ).subscribe(items => this.propagateChanges(items));
+
+    // run the workflow process
+    this.process$.pipe(
+      takeUntilDestroy(this, 'dispose')
+    ).subscribe(this.process.bind(this));
   }
 
-  initListeners() {
-    const scroller = this.scroller;
-    scroller.logger.log(() => `uiScroll Workflow listeners are being initialized`);
-    // update the items in the view
-    scroller.buffer.$items.pipe(
-      takeUntilDestroy(this.context),
-    ).subscribe(items => this.context.items = items);
+  callWorkflow(processSubject: ProcessSubject) {
+    if (!this.isInitialized) {
+      return;
+    }
 
-    this.process$.subscribe(this.process.bind(this));
+    this.process$.next(processSubject);
+  }
+
+  process(data: ProcessSubject) {
+    const { status, process, payload } = data;
+    if (this.scroller.settings.logProcessRun) {
+      this.scroller.logger.log(() => [
+        '%cfire%c', ...['color: #cc7777;', 'color: #000000;'], process, `"${status}"`, ...(payload ? [payload] : [])
+      ]);
+    }
+    this.scroller.logger.logProcess(data, this.scroller.state);
+    if (process === Process.end) {
+      this.scroller.finalize();
+    }
+    runStateMachine({
+      input: data,
+      methods: this.stateMachineMethods
+    });
   }
 
   runProcess() {
@@ -62,7 +106,8 @@ export class Workflow {
       };
   }
 
-  processError(process: Process, message: string) {
+  onError(process: Process, payload: any) {
+    const message: string = payload && payload.error || '';
     this.errors.push({
       process,
       message,
@@ -72,207 +117,29 @@ export class Workflow {
     this.scroller.logger.logError(message, this.scroller.state);
   }
 
-  process(data: ProcessSubject) {
-    const { status, process, payload: pay } = data;
-    if (this.scroller.settings.logProcessRun) {
-      this.scroller.logger.log(() => [
-        '%cfire%c', ...['color: #cc7777;', 'color: #000000;'], process, `"${status}"`, ...(pay ? [pay] : [])
-      ]);
+  interrupt({ process, finalize, datasource }: InterruptParams) {
+    if (finalize) {
+      const { workflow, logger } = this.scroller;
+      // we are going to create a new reference for the scroller.workflow object
+      // calling the old version of the scroller.workflow by any outstanding async processes will be skipped
+      workflow.call = (p?: ProcessSubject) => logger.log('[skip wf call]');
+      (<any>workflow.call).interrupted = true;
+      this.scroller.workflow = <ScrollerWorkflow>{ call: <Function>this.callWorkflow };
+      this.interruptionCount++;
+      logger.log(() =>
+        `workflow had been interrupted by the ${process} process (${this.interruptionCount})`
+      );
     }
-    const { payload = {} } = data;
-    const options = this.scroller.state.workflowOptions;
-    const run = this.runProcess();
-    this.scroller.logger.logProcess(data, this.scroller.state);
-    if (status === Status.error) {
-      this.processError(process, payload.error || '');
-      run(End)(process, payload);
-      return;
+    if (datasource) {
+      this.scroller.logger.log('new Scroller instantiation');
+      const {
+        viewport: { element },
+        state: { isLoading },
+        workflow: { call },
+        buffer: { $items }
+      } = this.scroller;
+      this.scroller = new Scroller(element, datasource, this.version, call, this.logger, $items);
     }
-    switch (process) {
-      case Process.init:
-        // first process called (in constructor)
-        if (status === Status.start) {
-          run(Init)();
-        }
-        break;
-      case Process.start:
-        if (status === Status.next) {
-          switch (payload) {
-            case Process.append:
-            case Process.prepend:
-            case Process.check:
-              run(Render)();
-              break;
-            case Process.remove:
-              run(Clip)();
-              break;
-            case Process.userClip:
-              run(PreFetch)(payload);
-              break;
-            default: // This happens when start is called from init, as far as i can tell
-              run(PreFetch)();
-          }
-        }
-        break;
-      case Process.scroll:
-        if (status === Status.next) {
-          if (!options.keepScroll) {
-            run(Init)(process);
-          } else {
-            run(Start)(process);
-          }
-        }
-        break;
-      case Process.reload:
-        if (status === Status.start) {
-          run(Reload)(payload);
-        }
-        if (status === Status.next) {
-          if (payload.finalize) {
-            run(End)(process);
-          } else {
-            run(Init)(process);
-          }
-        }
-        break;
-      // Called exclusively from adapter's append method (i.e. called from the user)
-      case Process.append:
-        if (status === Status.start) {
-          run(Append)(payload);
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      // Called exclusively from adapter's prepend method (i.e called from the user)
-      case Process.prepend:
-        if (status === Status.start) {
-          run(Append)({ ...payload, prepend: true });
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      // Called by the user
-      case Process.check:
-        if (status === Status.start) {
-          run(Check)();
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      // Called by the user
-      case Process.remove:
-        if (status === Status.start) {
-          run(Remove)(payload);
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      // Called from the user
-      case Process.userClip:
-        if (status === Status.start) {
-          run(UserClip)(payload);
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      case Process.fix:
-        if (status === Status.start) {
-          run(Fix)(payload);
-        }
-        if (status === Status.next) {
-          run(Init)(process);
-        }
-        break;
-      // Called w
-      case Process.preFetch:
-        const userClip = payload === Process.userClip;
-        if (status === Status.done && !userClip) {
-          run(End)(process);
-        }
-        if (status === Status.next && !userClip) {
-          run(Fetch)();
-        }
-        if (userClip) {
-          run(PreClip)();
-        }
-        break;
-      case Process.fetch:
-        if (status === Status.next) {
-          run(PostFetch)();
-        }
-        break;
-      case Process.postFetch:
-        if (status === Status.next) {
-          run(Render)();
-        }
-        if (status === Status.done) {
-          run(End)(process);
-        }
-        break;
-      case Process.render:
-        if (status === Status.next) {
-          if (payload.noClip) {
-            run(Adjust)();
-          } else {
-            run(PreClip)();
-          }
-        }
-        break;
-      case Process.preClip:
-        if (status === Status.next) {
-          if (payload.doClip) {
-            run(Clip)();
-          } else {
-            run(Adjust)();
-          }
-        }
-        break;
-      case Process.clip:
-        if (status === Status.next) {
-          if (payload === Process.end) {
-            run(End)();
-          } else {
-            run(Adjust)();
-          }
-        }
-        break;
-      case Process.adjust:
-        if (status === Status.done) {
-          run(End)(process);
-        }
-        break;
-      case Process.end:
-        if (status === Status.next) {
-          switch (payload) {
-            case Process.reload:
-              this.done();
-              run(Init)(payload);
-              break;
-            default:
-              if (options.keepScroll) {
-                run(Scroll)();
-              } else {
-                run(Start)(process);
-              }
-          }
-        } else if (status === Status.done) {
-          this.done();
-        }
-        break;
-    }
-  }
-
-  callWorkflow(processSubject: ProcessSubject) {
-    // this.scroller.logger.log(() => {
-    //   const { process, status, payload } = processSubject;
-    //   return ['%ccall%c', ...['color: #77cc77;', 'color: #000000;'], process, `"${status}"`, ...(payload ? [payload] : [])];
-    // });
-    this.process$.next(processSubject);
   }
 
   done() {
@@ -289,8 +156,8 @@ export class Workflow {
   }
 
   dispose() {
-    this.process$.complete();
     this.scroller.dispose();
+    this.isInitialized = false;
   }
 
   finalize() {

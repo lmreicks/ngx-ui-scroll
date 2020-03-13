@@ -2,11 +2,11 @@ import { Directive, Input, TemplateRef, ViewContainerRef, ComponentFactoryResolv
 
 import version from './ui-scroll.version';
 import { UiScrollComponent } from './ui-scroll.component';
-import { Datasource } from './component/interfaces/datasource';
+import { IDatasource } from './component/interfaces/datasource';
 
 @Directive({ selector: '[uiScroll][uiScrollOf]' })
 export class UiScrollDirective implements OnInit {
-  private datasource: Datasource;
+  private datasource: IDatasource;
 
   constructor(
     private templateRef: TemplateRef<any>,
@@ -15,15 +15,14 @@ export class UiScrollDirective implements OnInit {
   ) {
   }
 
-  @Input() set uiScrollOf(datasource: Datasource) {
+  @Input() set uiScrollOf(datasource: IDatasource) {
     this.datasource = datasource;
   }
 
   ngOnInit() {
-    const templateView = this.templateRef.createEmbeddedView({});
     const compFactory = this.resolver.resolveComponentFactory(UiScrollComponent);
     const componentRef = this.viewContainer.createComponent(
-      compFactory, undefined, this.viewContainer.injector, [templateView.rootNodes]
+      compFactory, undefined, this.viewContainer.injector
     );
     componentRef.instance.datasource = this.datasource;
     componentRef.instance.template = this.templateRef;

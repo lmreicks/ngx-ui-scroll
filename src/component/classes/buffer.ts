@@ -1,33 +1,35 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 
 import { Direction } from '../interfaces/index';
 import { Cache } from './cache';
 import { Item } from './item';
 import { Settings } from './settings';
-import { LoggerService } from '../../logger.service';
 
 export class Buffer {
 
-  private _items: Array<Item>;
-  /**
-   * Observable of the items to be displayed
-   */
-  $items: BehaviorSubject<Array<Item>>;
+  private _items: Item[];
+  private _absMinIndex: number;
+  private _absMaxIndex: number;
+  private _bof: boolean;
+  private _eof: boolean;
+
+  $items: BehaviorSubject<Item[]>;
+  bofSource: Subject<boolean>;
+  eofSource: Subject<boolean>;
 
   pristine: boolean;
   cache: Cache;
   minIndexUser: number;
   maxIndexUser: number;
-  absMinIndex: number;
-  absMaxIndex: number;
 
   private startIndex: number;
   readonly minBufferSize: number;
 
-  constructor(settings: Settings, startIndex: number, readonly logger: LoggerService) {
-    // TODO: make this a part of the workflow
-    this.$items = new BehaviorSubject<Array<Item>>([]);
-    this.cache = new Cache(settings.itemSize, logger);
+  constructor(settings: Settings, startIndex: number, $items?: BehaviorSubject<Item[]>) {
+    this.$items = $items || new BehaviorSubject<Item[]>([]);
+    this.eofSource = new Subject<boolean>();
+    this.bofSource = new Subject<boolean>();
+    this.cache = new Cache(settings.itemSize);
     this.minIndexUser = settings.minIndex;
     this.maxIndexUser = settings.maxIndex;
     this.reset();
@@ -49,14 +51,75 @@ export class Buffer {
     }
   }
 
-  set items(items: Array<Item>) {
+  set items(items: Item[]) {
     this.pristine = false;
     this._items = items;
     this.$items.next(items);
+    this.checkBOF();
+    this.checkEOF();
   }
 
-  get items(): Array<Item> {
+  get items(): Item[] {
     return this._items;
+  }
+
+  set absMinIndex(value: number) {
+    if (this._absMinIndex !== value) {
+      this._absMinIndex = value;
+      this.checkBOF();
+    }
+  }
+
+  get absMinIndex(): number {
+    return this._absMinIndex;
+  }
+
+  set absMaxIndex(value: number) {
+    if (this._absMaxIndex !== value) {
+      this._absMaxIndex = value;
+      this.checkEOF();
+    }
+  }
+
+  get absMaxIndex(): number {
+    return this._absMaxIndex;
+  }
+
+  /**
+   * Indicates whether the beginning of the dataset is reached or not.
+   */
+  get bof(): boolean {
+    return this._bof;
+  }
+
+  /**
+   * Indicates whether the end of the dataset is reached or not.
+   */
+  get eof(): boolean {
+    return this._eof;
+  }
+
+  private checkBOF() {
+    // since bof has no setter, need to call checkBOF() on items and absMinIndex change
+    const bof = this.items.length
+      ? (this.items[0].$index === this.absMinIndex)
+      : isFinite(this.absMinIndex);
+
+    if (this._bof !== bof) {
+      this._bof = bof;
+      this.bofSource.next(bof);
+    }
+  }
+
+  private checkEOF() {
+    // since eof has no setter, need to call checkEOF() on items and absMaxIndex change
+    const eof = this.items.length
+      ? (this.items[this.items.length - 1].$index === this.absMaxIndex)
+      : isFinite(this.absMaxIndex);
+    if (this._eof !== eof) {
+      this._eof = eof;
+      this.eofSource.next(eof);
+    }
   }
 
   get size(): number {
@@ -77,22 +140,6 @@ export class Buffer {
 
   get maxIndex(): number {
     return isFinite(this.cache.maxIndex) ? this.cache.maxIndex : this.startIndex;
-  }
-
-  /**
-   * Indicates whether the beginning of the dataset is reached or not.
-   */
-  get bof(): boolean {
-    return this.items.length ? (this.items[0].$index === this.absMinIndex) :
-      isFinite(this.absMinIndex);
-  }
-
-  /**
-   * Indicates whether the end of the dataset is reached or not.
-   */
-  get eof(): boolean {
-    return this.items.length ? (this.items[this.items.length - 1].$index === this.absMaxIndex) :
-      isFinite(this.absMaxIndex);
   }
 
   /**
@@ -117,9 +164,9 @@ export class Buffer {
     return this.items.find((item: Item) => item.$index === $index);
   }
 
-  setItems(items: Array<Item>): boolean {
+  setItems(items: Item[]): boolean {
     if (!this.items.length) {
-      this.items = items;
+      this.items = [...items];
     } else if (this.items[0].$index > items[items.length - 1].$index) {
       this.items = [...items, ...this.items];
     } else if (items[0].$index > this.items[this.items.length - 1].$index) {
@@ -145,15 +192,40 @@ export class Buffer {
    * @param item Item to remove
    */
   removeItem(item: Item) {
-    this.items = this.items.filter((_item: Item) => _item.$index !== item.$index);
-    this.items.forEach((_item: Item) => {
+    const items = this.items.filter(({ $index }: Item) => $index !== item.$index);
+    items.forEach((_item: Item) => {
       if (_item.$index > item.$index) {
         _item.$index--;
         _item.nodeId = String(_item.$index);
       }
     });
-    this.absMaxIndex--;
+    this.absMaxIndex--; // todo: perhaps we want to reduce absMinIndex in some cases
+    this.items = items;
     this.cache.removeItem(item.$index);
+  }
+
+  insertItems(items: Item[], from: Item, addition: number, decrement: boolean) {
+    const count = items.length;
+    const index = this.items.indexOf(from) + addition;
+    const itemsBefore = this.items.slice(0, index);
+    const itemsAfter = this.items.slice(index);
+    if (decrement) {
+      itemsBefore.forEach((item: Item) => item.updateIndex(item.$index - count));
+    } else {
+      itemsAfter.forEach((item: Item) => item.updateIndex(item.$index + count));
+    }
+    const result = <Item[]>[
+      ...itemsBefore,
+      ...items,
+      ...itemsAfter
+    ];
+    if (decrement) {
+      this.absMinIndex -= count;
+    } else {
+      this.absMaxIndex += count;
+    }
+    this.items = result;
+    this.cache.insertItems(from.$index + addition, count, decrement);
   }
 
   getFirstVisibleItemIndex(): number {

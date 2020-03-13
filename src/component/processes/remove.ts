@@ -13,7 +13,7 @@ export default class Remove {
 
   static run(scroller: Scroller, predicate: ItemsPredicate) {
     if (!isFunction(predicate)) {
-      scroller.callWorkflow({
+      scroller.workflow.call({
         process: Process.remove,
         status: ProcessStatus.error,
         payload: { error: `Wrong argument of the "Adapter.remove" method call` }
@@ -24,23 +24,23 @@ export default class Remove {
     let needToUpdateView: boolean = scroller.state.clip.doClip;
 
     scroller.buffer.items.forEach(item => {
-      if (predicate(item)) {
+      if (predicate(item.get())) {
         item.toRemove = true;
-        item.removeDirection = Direction.backward; // inversion, will alway increase fwd padding
+        item.removeDirection = Direction.forward; // inversion, will alway increase fwd padding
         scroller.state.clip.doClip = scroller.state.clip.simulate = needToUpdateView = true;
       }
     });
 
     // if no items are to be removed, we don't need to change the view at all, so removing is done
     if (!needToUpdateView) {
-      scroller.callWorkflow({
+      scroller.workflow.call({
         process: Process.remove,
         status: ProcessStatus.done
       });
       return;
     }
 
-    scroller.callWorkflow({
+    scroller.workflow.call({
       process: Process.remove,
       status: ProcessStatus.next
     });

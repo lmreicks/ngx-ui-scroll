@@ -4,6 +4,7 @@ export enum Process {
   /**
    * Resets the items buffer, resets the viewport params and starts fetching items from "startIndex" (if set).
    */
+  reset = 'adapter.reset',
   reload = 'adapter.reload',
   /**
    * Adds items or single item to the end of the uiScroll dataset.
@@ -39,6 +40,7 @@ export enum Process {
    * If no options is passed, clipping will affect both forward and backward directions.
    */
   userClip = 'adapter.clip',
+  insert = 'adapter.insert',
   fix = 'adapter.fix',
   start = 'start',
   preFetch = 'preFetch',
@@ -58,22 +60,8 @@ export enum ProcessStatus {
   error = 'error'
 }
 
-export interface ScrollPayload {
-  event?: Event;
-  byTimer?: boolean;
-}
-
 export interface ProcessSubject {
   process: Process;
   status: ProcessStatus;
   payload?: any;
 }
-
-export interface WorkflowError {
-  loop: string;
-  time: number;
-  message: string;
-  process: Process;
-}
-
-export type CallWorkflow = (processSubject: ProcessSubject) => undefined;

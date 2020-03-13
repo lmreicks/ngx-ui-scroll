@@ -4,7 +4,7 @@ import { Process, ProcessStatus } from '../interfaces/index';
 export default class Init {
 
   static run(scroller: Scroller, process?: Process) {
-    const { state } = scroller;
+    const { state, workflow } = scroller;
 
     // TODO: find instance that init is not used as init, that is bad architecture
     const isInitial = !process || process === Process.reload;
@@ -16,7 +16,7 @@ export default class Init {
 
     // start the cycle stuff,
     // TODO: write more comments when we figure out what Start does
-    scroller.callWorkflow({
+    workflow.call({
       process: Process.start,
       status: ProcessStatus.start,
       payload: process || Process.init

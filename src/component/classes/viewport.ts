@@ -1,5 +1,3 @@
-import { ElementRef } from '@angular/core';
-
 import { Direction } from '../interfaces/index';
 import { Paddings } from './paddings';
 import { Settings } from './settings';
@@ -27,12 +25,12 @@ export class Viewport {
 
   private disabled: boolean;
 
-  constructor(elementRef: ElementRef, settings: Settings, routines: DomHelper, state: State, logger: LoggerService) {
+  constructor(element: HTMLElement, settings: Settings, routines: DomHelper, state: State, logger: LoggerService) {
+    this.element = element;
     this.settings = settings;
     this.routines = routines;
     this.state = state;
     this.logger = logger;
-    this.element = elementRef.nativeElement;
     this.disabled = false;
 
     if (settings.windowViewport) {

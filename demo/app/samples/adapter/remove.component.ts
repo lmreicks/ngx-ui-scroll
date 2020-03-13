@@ -33,7 +33,7 @@ export class DemoRemoveComponent {
   }
 
   datasource = new Datasource({
-    get: (index, count, success) => {
+    get: (index: number, count: number, success: Function) => {
       const data = [];
       for (let i = index; i < index + count; i++) {
         const found = this.data.find(item => item.id === i);
@@ -86,7 +86,7 @@ doRemoveDatasource(id: number) {
 }
 
 doRemove(id: number) {
-  this.datasource.adapter.remove(item => item.data.id === id);
+  this.datasource.adapter.remove(({ data }) => data.id === id);
   this.doRemoveDatasource(id);
 }`
   }, {
@@ -122,7 +122,7 @@ doRemove(id: number) {
 }`
   }];
 
-  predicateDescription = `  this.datasource.adapter.remove(item => item.data.id === id);`;
+  predicateDescription = `  this.datasource.adapter.remove(({ data }) => data.id === id);`;
 
   doRemoveDatasource(id: number) {
     this.data = this.data.reduce((acc, item) => {
@@ -138,7 +138,7 @@ doRemove(id: number) {
   }
 
   doRemove(id: number) {
-    this.datasource.adapter.remove(item => item.data.id === id);
+    this.datasource.adapter.remove(({ data }) => data.id === id);
     this.doRemoveDatasource(id);
   }
 
