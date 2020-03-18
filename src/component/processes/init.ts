@@ -8,7 +8,7 @@ export default class Init {
 
     // TODO: find instance that init is not used as init, that is bad architecture
     const isInitial = !process || process === Process.reload;
-    scroller.logger.logCycle(true);
+    scroller.logger.logCycle(true, state);
     state.isInitialWorkflowCycle = isInitial;
     state.isInitialLoop = isInitial;
     state.workflowPending = true;
@@ -17,9 +17,9 @@ export default class Init {
     // start the cycle stuff,
     // TODO: write more comments when we figure out what Start does
     workflow.call({
-      process: Process.start,
-      status: ProcessStatus.start,
-      payload: process || Process.init
+      process: Process.init,
+      status: ProcessStatus.next,
+      payload: { process: process || Process.init }
     });
   }
 

@@ -14,7 +14,7 @@
   <h3>Common demo</h3>
   <div class="work">
     <div class="viewport-wrapper">
-      <div class="viewport">
+      <div class="viewport" uiScrollViewport>
         <div *uiScroll="let item of datasource; let even = even">
           <div class="item" [class.even]="even">
             {{item.text}}

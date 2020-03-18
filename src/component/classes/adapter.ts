@@ -1,9 +1,6 @@
 import { BehaviorSubject, Subject } from 'rxjs';
 
-import { Scroller } from '../scroller';
-import { Logger } from './logger';
 import { Buffer } from './buffer';
-import { AdapterContext } from './adapterContext';
 import { ADAPTER_PROPS } from '../utils/index';
 import { Datasource } from './datasource';
 import {
@@ -23,19 +20,21 @@ import {
   ScrollerWorkflow,
   IDatasource
 } from '../interfaces/index';
+import { LoggerService } from '../../logger.service';
 
 export class Adapter implements IAdapter {
   readonly state: State;
   readonly buffer: Buffer;
-  readonly logger: Logger;
+  readonly logger: LoggerService;
   readonly getWorkflow: WorkflowGetter;
 
   get workflow(): ScrollerWorkflow {
     return this.getWorkflow();
   }
 
+  // TODO: fix this
   get version(): string {
-    return this.state.version;
+    return 'this.state.version;';
   }
   get isLoading(): boolean {
     return this.state.isLoading;
@@ -87,7 +86,7 @@ export class Adapter implements IAdapter {
     return this.buffer.eofSource;
   }
 
-  constructor(publicContext: IAdapter, state: State, buffer: Buffer, logger: Logger, getWorkflow: WorkflowGetter) {
+  constructor(publicContext: IAdapter, state: State, buffer: Buffer, logger: LoggerService, getWorkflow: WorkflowGetter) {
     this.state = state;
     this.buffer = buffer;
     this.logger = logger;

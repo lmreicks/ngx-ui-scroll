@@ -1,52 +1,51 @@
-import { Observable, Subscription, BehaviorSubject, timer, fromEvent } from 'rxjs';
+import { Observable, Subscription, BehaviorSubject, timer } from 'rxjs';
 
 import { checkDatasource } from './utils/index';
 import { Datasource } from './classes/datasource';
 import { Settings } from './classes/settings';
 import { DomHelper } from './classes/domRoutines';
-import { Viewport } from './classes/viewport';
 import { Buffer } from './classes/buffer';
 import { State } from './classes/state';
 import { ScrollerWorkflow, IDatasource } from './interfaces/index';
-import { switchMapTo } from 'rxjs/operators';
-import { takeUntilDestroy } from './utils/takeUntilDestroy';
 import { LoggerService } from '../logger.service';
 import { Item } from './classes/item';
 import { Adapter } from './classes/adapter';
+import { UiScrollViewportDirective as Viewport } from '../ui-scroll-viewport.directive';
+import { Paddings } from './classes/paddings';
 
 export class Scroller {
   public workflow: ScrollerWorkflow;
 
   public datasource: Datasource;
-  public settings: Settings;
   public logger: LoggerService;
   public routines: DomHelper;
-  public viewport: Viewport;
   public buffer: Buffer;
   public state: State;
   public adapter?: Adapter;
+  readonly viewport: Viewport;
+
+  get settings(): Settings {
+    return this.state.settings;
+  }
 
   public innerLoopSubscriptions: Array<Subscription>;
 
   constructor(
-    element: HTMLElement,
     datasource: Datasource | IDatasource,
-    version: string, callWorkflow: Function,
+    viewport: Viewport, state: State, callWorkflow: Function,
     logger: LoggerService,
     $items?: BehaviorSubject<Item[]> // to keep the reference during re-initialization
   ) {
     checkDatasource(datasource);
+    this.state = state;
 
     this.workflow = <ScrollerWorkflow>{ call: callWorkflow };
+    this.viewport = viewport;
     this.innerLoopSubscriptions = [];
-
-    this.settings = new Settings(datasource.settings, datasource.devSettings);
     this.logger = logger;
     this.routines = new DomHelper(this.settings);
-    this.state = new State(this.settings);
 
     this.buffer = new Buffer(this.settings, this.state.startIndex, $items);
-    this.viewport = new Viewport(element, this.settings, this.routines, this.state, this.logger);
 
     this.logger.object('uiScroll settings object', this.settings, true);
 
@@ -59,27 +58,10 @@ export class Scroller {
   }
 
   init() {
-    this.viewport.reset(0);
+    this.viewport.init(this);
+
+    // this.viewport.reset(0);
     this.state.setCurrentStartIndex(this.settings.startIndex, this.logger);
-
-    const { scrollEventElement } = this.viewport;
-    let passiveSupported = false;
-    try {
-      // check if passive events are sorted
-      window.addEventListener(
-        'test', <EventListenerOrEventListenerObject>{}, Object.defineProperty({}, 'passive', {
-          get: () => passiveSupported = true
-        })
-      );
-    } catch (err) {
-    }
-    const scrollEventOptions = { passive: passiveSupported };
-
-    timer(this.settings.initializeDelay).pipe(
-      switchMapTo(fromEvent(scrollEventElement, 'scroll', scrollEventOptions).pipe(
-        takeUntilDestroy(this, 'dispose')
-      ))
-    );
     this.logger.stat(this, 'initialization');
   }
 
@@ -94,7 +76,7 @@ export class Scroller {
   }
 
   bindData(): Observable<any> {
-    return timer();
+    return timer(200);
   }
 
   purgeInnerLoopSubscriptions() {

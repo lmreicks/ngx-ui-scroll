@@ -110,7 +110,7 @@ import { AppRoutingModule } from './app-routing.module';
     FormsModule,
     HttpClientModule,
     TabsModule.forRoot(),
-    UiScrollModule,
+    UiScrollModule.withOptions({ debug: true, immediateLog: true }),
     AppRoutingModule
   ],
   providers: [

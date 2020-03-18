@@ -5,7 +5,8 @@ import {
   State as IState,
   ScrollState as IScrollState,
   SyntheticScroll as ISyntheticScroll,
-  WorkflowOptions as IWorkflowOptions
+  WorkflowOptions as IWorkflowOptions,
+  IDatasource
 } from '../interfaces/index';
 
 import { Settings } from './settings';
@@ -18,7 +19,7 @@ import { LoggerService } from '../../logger.service';
 
 export class State implements IState {
 
-  protected settings: Settings;
+  readonly settings: Settings;
 
   initTime: number;
   innerLoopCount: number;
@@ -119,8 +120,8 @@ export class State implements IState {
     return `${this.settings.instanceIndex}-${this.workflowCycleCount}-${this.innerLoopCount + 1}`;
   }
 
-  constructor(settings: Settings) {
-    this.settings = settings;
+  constructor(datasource: IDatasource) {
+    this.settings = new Settings(datasource.settings, datasource.devSettings);
     this.initTime = Number(new Date());
     this.innerLoopCount = 0;
     this.isInitialLoop = false;

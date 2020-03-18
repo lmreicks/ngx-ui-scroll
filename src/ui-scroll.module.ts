@@ -1,20 +1,38 @@
-import { NgModule, ModuleWithProviders, InjectionToken } from '@angular/core';
+import { NgModule, ModuleWithProviders } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { UiScrollComponent } from './ui-scroll.component';
+import { UiScrollComponent, UiScrollItemComponent } from './ui-scroll.component';
 import { UiScrollDirective } from './ui-scroll.directive';
 import { DevSettings } from './component/interfaces';
 import { LoggerService } from './logger.service';
 import version from './ui-scroll.version';
+import { defaultDevSettings } from './component/classes/settings';
+import { DevConfigToken, VersionToken } from './tokens';
+import { UiScrollViewportDirective } from './ui-scroll-viewport.directive';
+import { UiScrollPaddingComponent } from './ui-scroll-padding.component';
 
 @NgModule({
   declarations: [
+    UiScrollViewportDirective,
     UiScrollComponent,
-    UiScrollDirective
+    UiScrollDirective,
+    UiScrollItemComponent,
+    UiScrollPaddingComponent
   ],
   imports: [CommonModule],
-  entryComponents: [UiScrollComponent],
-  exports: [UiScrollDirective]
+  entryComponents: [UiScrollComponent, UiScrollPaddingComponent],
+  exports: [UiScrollViewportDirective, UiScrollDirective],
+  providers: [
+    LoggerService,
+    {
+      provide: DevConfigToken,
+      useValue: defaultDevSettings
+    },
+    {
+      provide: VersionToken,
+      useValue: version
+    }
+  ]
 })
 export class UiScrollModule {
   static withOptions(devSettings: DevSettings): ModuleWithProviders {
@@ -35,5 +53,3 @@ export class UiScrollModule {
   }
 }
 
-export const VersionToken = new InjectionToken<string>('UiScrollVersion');
-export const DevConfigToken = new InjectionToken<DevSettings>('DevSettings');

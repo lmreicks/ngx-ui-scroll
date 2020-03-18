@@ -84,7 +84,7 @@ export default class Adjust {
     forwardPadding.size = fwdSize;
     backwardPadding.size = bwdSize;
 
-    scroller.logger.stat('after paddings adjustments');
+    scroller.logger.stat(scroller, 'after paddings adjustments');
     return bwdPaddingAverageSizeItemsCount;
   }
 
@@ -101,7 +101,7 @@ export default class Adjust {
           winState.reset();
           scroller.logger.log(() => `process window scroll preventive: sum(${newPosition}, ${posDiff})`);
           Adjust.setScroll(scroller, posDiff);
-          scroller.logger.stat('after scroll position adjustment (window)');
+          scroller.logger.stat(scroller, 'after scroll position adjustment (window)');
           return;
         }
       }
@@ -123,7 +123,7 @@ export default class Adjust {
           viewport.disableScrollForOneLoop();
         }
         Adjust.setScroll(scroller, positionDiff);
-        scroller.logger.stat('after scroll position adjustment (average)');
+        scroller.logger.stat(scroller, 'after scroll position adjustment (average)');
       }
       state.bwdPaddingAverageSizeItemsCount = bwdPaddingAverageSizeItemsCount;
     }
@@ -151,7 +151,7 @@ export default class Adjust {
       viewport.paddings.forward.size -= negativeSize;
       viewport.scrollPosition -= negativeSize;
     }
-    scroller.logger.stat('after scroll position adjustment (negative)');
+    scroller.logger.stat(scroller, 'after scroll position adjustment (negative)');
   }
 
   static setScroll(scroller: Scroller, delta: number) {

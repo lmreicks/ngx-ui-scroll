@@ -5,7 +5,7 @@ export default class Reload {
 
   static run(scroller: Scroller, reloadIndex: any) {
     const scrollPosition = scroller.viewport.scrollPosition;
-    scroller.state.setCurrentStartIndex(reloadIndex);
+    scroller.state.setCurrentStartIndex(reloadIndex, scroller.logger);
     scroller.buffer.reset(true, scroller.state.startIndex);
     scroller.viewport.reset(scrollPosition);
     const payload: any = {};

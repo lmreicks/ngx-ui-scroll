@@ -1,5 +1,4 @@
 import { Item } from './item';
-import { Logger } from './logger';
 
 export class ItemCache {
   $index: number;
@@ -49,17 +48,15 @@ export class Cache {
   recalculateAverage: RecalculateAverage;
 
   private items: Map<number, ItemCache>;
-  readonly logger: Logger;
   readonly itemSize: number;
 
-  constructor(itemSize: number, logger: Logger) {
+  constructor(itemSize: number) {
     this.averageSizeFloat = itemSize;
     this.averageSize = itemSize;
     this.itemSize = itemSize;
     this.items = new Map<number, ItemCache>();
     this.recalculateAverage = new RecalculateAverage();
     this.reset();
-    this.logger = logger;
   }
 
   reset() {
@@ -90,7 +87,6 @@ export class Cache {
     }
     this.averageSize = Math.round(this.averageSizeFloat);
     this.recalculateAverage.reset();
-    this.logger.log(() => `average size has been updated: ${this.averageSize}`);
     return true;
   }
 

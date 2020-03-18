@@ -1,14 +1,14 @@
 import { Injectable, Inject } from '@angular/core';
 import { DevSettings, Process, ProcessStatus as Status, ProcessSubject, State } from './component/interfaces';
-import { DevConfigToken } from './ui-scroll.module';
 import { Scroller } from './component/scroller';
 import { defaultDevSettings } from './component/classes/settings';
+import { DevConfigToken } from './tokens';
 
 type LogType = [any?, ...any[]];
 
 @Injectable()
 export class LoggerService {
-  private debug = false;
+  readonly debug: boolean = false;
 
   private initTime: number;
   get time(): number {
@@ -27,6 +27,8 @@ export class LoggerService {
     this.immediateLog = devSettings.immediateLog || false;
     this.logTime = devSettings.logTime || false;
 
+    console.log(this.debug);
+
     this.log(() => `uiScroll Workflow has been started`);
   }
 
@@ -44,7 +46,7 @@ export class LoggerService {
   }
 
   stat(scroller: Scroller, str?: string) {
-    if (scroller.settings.debug) {
+    if (this.debug) {
       const logStyles = ['color: #888; border: dashed #888 0; border-bottom-width: 0px', 'color: #000; border-width: 0'];
       this.log(() => ['%cstat' + (str ? ` ${str}` : '') + ',%c ' + LoggerService.getStat(scroller), ...logStyles]);
     }
@@ -67,8 +69,7 @@ export class LoggerService {
    * @param data
    */
   logProcess(data: ProcessSubject, state: State) {
-    // TODO: possibly pass in State here, this will get rid of the need for passing in scroller to logger
-    if (!this.devSettings.debug) {
+    if (!this.debug) {
       return;
     }
     const { process, status } = data;
@@ -104,8 +105,8 @@ export class LoggerService {
    * Logs cycle information
    * @param start If this is the start of the cycle
    */
-  logCycle(start = true) {
-    const logData = this.getWorkflowCycleData();
+  logCycle(start = true, state: State) {
+    const logData = state.workflowOptions;
     const border = start ? '1px 0 0 1px' : '0 0 1px 1px';
     const logStyles = `color: #0000aa; border: solid #555 1px; border-width: ${border}; margin-left: -2px`;
     this.log(() => [`%c   ~~~ WF Cycle ${logData} ${start ? 'STARTED' : 'FINALIZED'} ~~~  `, logStyles]);
@@ -116,6 +117,28 @@ export class LoggerService {
       const logStyles = ['color: #a00;', 'color: #000'];
       this.log(() => ['error:%c' + (str ? ` ${str}` : '') + `%c (loop ${state.loop})`, ...logStyles]);
     }
+  }
+
+  logAdapterMethod = (methodName: string, methodArg?: any, methodSecondArg?: any) => {
+    if (!this.debug) {
+      return;
+    }
+    const params = [
+      ...(methodArg ? [methodArg] : []),
+      ...(methodSecondArg ? [methodSecondArg] : [])
+    ]
+      .map((arg: any) => {
+        if (typeof arg === 'function') {
+          return 'func';
+        } else if (typeof arg !== 'object' || !arg) {
+          return arg;
+        } else if (Array.isArray(arg)) {
+          return `[of ${arg.length}]`;
+        }
+        return '{ ' + Object.keys(arg).join(', ') + ' }';
+      })
+      .join(', ');
+    this.log(`adapter: ${methodName}(${params || ''})`);
   }
 
   log(...args: any[]) {

@@ -1,12 +1,19 @@
-import { Direction } from '../interfaces/index';
-import { Paddings } from './paddings';
-import { Settings } from './settings';
-import { DomHelper } from './domRoutines';
-import { State } from './state';
-import { LoggerService } from '../../logger.service';
+import { Directive, HostListener, OnDestroy, ElementRef, Input } from '@angular/core';
+import { Subject, Observable, fromEvent } from 'rxjs';
+import { takeUntilDestroy } from './component/utils/takeUntilDestroy';
+import { LoggerService } from './logger.service';
+import { DomHelper } from './component/classes/domRoutines';
+import { Paddings } from './component/classes/paddings';
+import { Settings } from './component/classes/settings';
+import { Direction, Process, ProcessStatus } from './component/interfaces';
+import { State } from './component/classes/state';
+import { Scroller } from './component/scroller';
 
-export class Viewport {
-
+@Directive({
+  selector: '[uiScrollViewport]',
+  exportAs: 'uiScrollViewport',
+})
+export class UiScrollViewportDirective implements OnDestroy {
   paddings: Paddings;
 
   /**
@@ -14,23 +21,30 @@ export class Viewport {
    */
   startDelta: number; // TODO: this could be wrong, so update it if we find new info
 
+  @Input() settings: Settings;
+
   readonly element: HTMLElement;
-  readonly host: HTMLElement;
-  readonly scrollEventElement: HTMLElement | Document;
-  readonly scrollable: HTMLElement;
-  readonly settings: Settings;
-  readonly routines: DomHelper;
-  readonly state: State;
-  readonly logger: LoggerService;
+  public host: HTMLElement;
+  public scrollEventElement: HTMLElement | Document;
+  public scrollable: HTMLElement;
+  public routines: DomHelper;
+  public state: State;
 
   private disabled: boolean;
+  private windowScroll$: Subject<Event> = new Subject();
+  private elementScroll$: Subject<Event> = new Subject();
 
-  constructor(element: HTMLElement, settings: Settings, routines: DomHelper, state: State, logger: LoggerService) {
-    this.element = element;
+  constructor(elementRef: ElementRef, private logger: LoggerService) {
+    this.element = elementRef.nativeElement;
+  }
+
+  init(scroller: Scroller): void {
+    console.log(this.element);
+    const { settings, state } = scroller;
+    this.paddings = new Paddings(this.element, scroller.routines, scroller.settings);
     this.settings = settings;
-    this.routines = routines;
+    this.routines = scroller.routines;
     this.state = state;
-    this.logger = logger;
     this.disabled = false;
 
     if (settings.windowViewport) {
@@ -38,16 +52,15 @@ export class Viewport {
       this.scrollEventElement = <Document>(this.element.ownerDocument);
       this.scrollable = <HTMLElement>this.scrollEventElement.scrollingElement;
     } else {
-      this.host = <HTMLElement>this.element.parentElement;
+      this.host = <HTMLElement>this.element;
       this.scrollEventElement = this.host;
-      this.scrollable = <HTMLElement>this.element.parentElement;
+      this.scrollable = <HTMLElement>this.element;
     }
-
-    // this.paddings = new Paddings(this.element, this.routines, settings);
 
     if (settings.windowViewport && 'scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+    this.logger.stat(scroller, 'initialization');
   }
 
   reset(scrollPosition: number) {
@@ -119,16 +132,23 @@ export class Viewport {
     return this.getSize() * this.settings.padding;
   }
 
-  getEdge(direction: Direction, opposite?: boolean): number {
-    return this.routines.getEdge(this.host, direction, opposite);
-  }
-
   getElementEdge(element: HTMLElement, direction: Direction, opposite?: boolean): number {
     return this.routines.getEdge(element, direction, opposite);
+  }
+
+  getEdge(direction: Direction, opposite?: boolean): number {
+    return this.routines.getEdge(this.host, direction, opposite);
   }
 
   getOffset(): number {
     return this.routines.getOffset(this.element);
   }
 
+  getScrollEvent$(window: boolean): Observable<Event> {
+    return (window ? this.windowScroll$ : this.elementScroll$).pipe(
+      takeUntilDestroy(this)
+    );
+  }
+
+  ngOnDestroy(): void { }
 }

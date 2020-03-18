@@ -5,7 +5,7 @@ import { Item } from '../classes/item';
 export default class Render {
 
   static run(scroller: Scroller) {
-    scroller.logger.stat('before new items render');
+    scroller.logger.stat(scroller, 'before new items render');
     scroller.innerLoopSubscriptions.push(
       scroller.bindData().subscribe(() => {
         if (Render.processElements(scroller)) {
@@ -38,11 +38,16 @@ export default class Render {
       }
     }
     fetch.hasAverageItemSizeChanged = buffer.checkAverageSize();
+
+    if (fetch.hasAverageItemSizeChanged) {
+      scroller.logger.log(() => `average size has been updated: ${buffer.averageSize}`);
+    }
+
     state.sizeAfterRender = viewport.getScrollableSize();
     if (scrollBeforeRender !== null) {
       Render.processWindowScrollBackJump(scroller, scrollBeforeRender);
     }
-    scroller.logger.stat('after new items render');
+    scroller.logger.stat(scroller, 'after new items render');
     return true;
   }
 

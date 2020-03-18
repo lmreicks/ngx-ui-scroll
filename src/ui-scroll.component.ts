@@ -8,16 +8,28 @@ import { Workflow } from './component/workflow';
 import { IDatasource } from './component/interfaces/index';
 import { Datasource } from './component/classes/datasource';
 import { Item } from './component/classes/item';
-import { VersionToken } from './ui-scroll.module';
 import { LoggerService } from './logger.service';
+import { Observable } from 'rxjs';
+import { VersionToken } from './tokens';
+import { UiScrollPaddingComponent } from './ui-scroll-padding.component';
+import { UiScrollViewportDirective } from './ui-scroll-viewport.directive';
+import { Paddings } from './component/classes/paddings';
+import { Settings } from './component/classes/settings';
+import { State } from './component/classes/state';
+
+@Component({
+  selector: 'ui-scroll-item',
+  template: '<ng-content></ng-content>',
+  styles: [':host { display: block }']
+})
+export class UiScrollItemComponent {}
 
 /* tslint:disable:component-selector */
 @Component({
   selector: '[ui-scroll]',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div data-padding-backward></div>
-    <div
+    <ui-scroll-item
       *ngFor="let item of items"
       [attr.data-sid]="item.nodeId"
       [style.position]="item.invisible ? 'fixed' : null"
@@ -30,10 +42,15 @@ import { LoggerService } from './logger.service';
           odd: item.$index % 2,
           even: !(item.$index % 2)
       }"></ng-template>
-    </div>
-    <div data-padding-forward></div>`
+    </ui-scroll-item>`
 })
 export class UiScrollComponent implements OnInit, OnDestroy {
+  public forwardPadding: UiScrollPaddingComponent;
+  public backwardPadding: UiScrollPaddingComponent;
+
+  public settings: Settings;
+
+  public viewport: UiScrollViewportDirective;
 
   // come from the directive
   public template: TemplateRef<any>;
@@ -45,6 +62,8 @@ export class UiScrollComponent implements OnInit, OnDestroy {
   // Component-Workflow integration
   public workflow: Workflow;
 
+  public scrollEvent$: Observable<Event>;
+
   constructor(
     public changeDetector: ChangeDetectorRef,
     public elementRef: ElementRef,
@@ -54,10 +73,12 @@ export class UiScrollComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    const state = new State(this.datasource);
     this.workflow = new Workflow(
-      this.elementRef.nativeElement,
       this.datasource,
-      this.version,
+      this.viewport,
+      state,
+      this.logger,
       (items: Item[]) => {
         if (!items.length && !this.items.length) {
           return;

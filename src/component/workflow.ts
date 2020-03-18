@@ -1,4 +1,4 @@
-import { BehaviorSubject, timer } from 'rxjs';
+import { BehaviorSubject, timer, fromEvent } from 'rxjs';
 
 import { Scroller } from './scroller';
 import { runStateMachine } from './workflow-transducer';
@@ -7,14 +7,17 @@ import {
   Process,
   ProcessStatus as Status,
   ProcessSubject,
-  ProcessStatus,
   WorkflowError,
   ScrollerWorkflow,
   InterruptParams,
-  StateMachineMethods
+  StateMachineMethods,
+  ProcessStatus
 } from './interfaces/index';
 import { LoggerService } from '../logger.service';
 import { takeUntilDestroy } from './utils/takeUntilDestroy';
+import { UiScrollViewportDirective } from '../ui-scroll-viewport.directive';
+import { Paddings } from './classes/paddings';
+import { State } from './classes/state';
 
 export class Workflow {
 
@@ -26,10 +29,12 @@ export class Workflow {
   errors: Array<WorkflowError>;
 
   readonly propagateChanges: Function;
-  readonly onScrollHandler: EventListener;
   private stateMachineMethods: StateMachineMethods;
 
-  constructor(element: HTMLElement, datasource: IDatasource, private version: string, private logger: LoggerService, run: Function) {
+  constructor(datasource: IDatasource,
+    private viewport: UiScrollViewportDirective,
+    private state: State,
+    private logger: LoggerService, run: Function) {
     this.isInitialized = false;
     this.process$ = new BehaviorSubject(<ProcessSubject>{
       process: Process.init,
@@ -37,15 +42,10 @@ export class Workflow {
     });
     this.propagateChanges = run;
     this.callWorkflow = <any>this.callWorkflow.bind(this);
-    this.scroller = new Scroller(element, datasource, version, this.callWorkflow, this.logger);
+    this.scroller = new Scroller(datasource, this.viewport, this.state, this.callWorkflow, this.logger);
     this.cyclesDone = 0;
     this.interruptionCount = 0;
     this.errors = [];
-    this.onScrollHandler = event => this.callWorkflow({
-      process: Process.scroll,
-      status: ProcessStatus.start,
-      payload: { event }
-    });
     this.stateMachineMethods = {
       run: this.runProcess(),
       interrupt: this.interrupt.bind(this),
@@ -69,6 +69,30 @@ export class Workflow {
     this.process$.pipe(
       takeUntilDestroy(this, 'dispose')
     ).subscribe(this.process.bind(this));
+
+    const { scrollEventElement } = this.viewport;
+    let passiveSupported = false;
+    try {
+      // check if passive events are sorted
+      window.addEventListener(
+        'test', <EventListenerOrEventListenerObject>{}, Object.defineProperty({}, 'passive', {
+          get: () => passiveSupported = true
+        })
+      );
+    } catch (err) {
+    }
+    const scrollEventOptions = { passive: passiveSupported };
+
+    fromEvent(scrollEventElement, 'scroll', scrollEventOptions).pipe(
+      takeUntilDestroy(this, 'dispose')
+    ).subscribe(event => {
+      this.scroller.workflow.call({
+        process: Process.scroll,
+        status: ProcessStatus.start,
+        payload: { event }
+      });
+    }
+    );
   }
 
   callWorkflow(processSubject: ProcessSubject) {
@@ -118,6 +142,7 @@ export class Workflow {
   }
 
   interrupt({ process, finalize, datasource }: InterruptParams) {
+    console.log('interupt');
     if (finalize) {
       const { workflow, logger } = this.scroller;
       // we are going to create a new reference for the scroller.workflow object
@@ -133,19 +158,18 @@ export class Workflow {
     if (datasource) {
       this.scroller.logger.log('new Scroller instantiation');
       const {
-        viewport: { element },
-        state: { isLoading },
+        state,
         workflow: { call },
         buffer: { $items }
       } = this.scroller;
-      this.scroller = new Scroller(element, datasource, this.version, call, this.logger, $items);
+      this.scroller = new Scroller(datasource, this.viewport, state, call, this.logger, $items);
     }
   }
 
   done() {
     const { state } = this.scroller;
     this.cyclesDone++;
-    this.scroller.logger.logCycle(false);
+    this.scroller.logger.logCycle(false, state);
     state.workflowCycleCount = this.cyclesDone + 1;
     state.isInitialWorkflowCycle = false;
     state.workflowPending = false;

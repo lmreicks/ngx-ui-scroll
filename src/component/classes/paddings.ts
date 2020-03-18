@@ -9,7 +9,7 @@ export class Padding {
   routines: DomHelper;
 
   constructor(element: HTMLElement, direction: Direction, routines: DomHelper) {
-    this.element = <HTMLElement>element.querySelector(`[data-padding-${direction}]`);
+    this.element = <HTMLElement>element.querySelector(`ui-scroll-padding[position="${direction}"]`);
     this.direction = direction;
     this.routines = routines;
   }
